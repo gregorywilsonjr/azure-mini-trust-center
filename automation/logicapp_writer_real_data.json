@@ -1,0 +1,288 @@
+{
+  "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "$connections": {
+      "type": "Object"
+    },
+    "subscriptionId": {
+      "type": "String"
+    },
+    "resourceGroupName": {
+      "type": "String"
+    },
+    "storageAccountName": {
+      "type": "String"
+    },
+    "appInsightsName": {
+      "type": "String"
+    }
+  },
+  "triggers": {
+    "Every_15_Minutes": {
+      "type": "Recurrence",
+      "recurrence": {
+        "frequency": "Minute",
+        "interval": 15
+      }
+    }
+  },
+  "actions": {
+    "Get_Availability_Tests": {
+      "type": "Http",
+      "inputs": {
+        "method": "GET",
+        "uri": "https://management.azure.com/subscriptions/@{parameters('subscriptionId')}/resourceGroups/@{parameters('resourceGroupName')}/providers/Microsoft.Insights/components/@{parameters('appInsightsName')}/availabilityResults?api-version=2015-05-01&timespan=P1D",
+        "authentication": {
+          "type": "ManagedServiceIdentity"
+        }
+      },
+      "runAfter": {}
+    },
+    "Get_Secure_Score": {
+      "type": "Http",
+      "inputs": {
+        "method": "GET",
+        "uri": "https://management.azure.com/subscriptions/@{parameters('subscriptionId')}/providers/Microsoft.Security/secureScores?api-version=2020-01-01",
+        "authentication": {
+          "type": "ManagedServiceIdentity"
+        }
+      },
+      "runAfter": {}
+    },
+    "Get_Security_Assessments": {
+      "type": "Http",
+      "inputs": {
+        "method": "GET",
+        "uri": "https://management.azure.com/subscriptions/@{parameters('subscriptionId')}/providers/Microsoft.Security/assessments?api-version=2020-01-01",
+        "authentication": {
+          "type": "ManagedServiceIdentity"
+        }
+      },
+      "runAfter": {}
+    },
+    "Get_Policy_States": {
+      "type": "Http",
+      "inputs": {
+        "method": "POST",
+        "uri": "https://management.azure.com/subscriptions/@{parameters('subscriptionId')}/providers/Microsoft.PolicyInsights/policyStates/latest/summarize?api-version=2019-10-01",
+        "authentication": {
+          "type": "ManagedServiceIdentity"
+        }
+      },
+      "runAfter": {}
+    },
+    "Get_Activity_Log": {
+      "type": "Http",
+      "inputs": {
+        "method": "GET",
+        "uri": "https://management.azure.com/subscriptions/@{parameters('subscriptionId')}/providers/Microsoft.Insights/eventtypes/management/values?api-version=2015-04-01&$filter=eventTimestamp ge '@{addDays(utcNow(), -1)}' and eventTimestamp le '@{utcNow()}'&$select=eventTimestamp,operationName,resourceId,caller,status&$top=1",
+        "authentication": {
+          "type": "ManagedServiceIdentity"
+        }
+      },
+      "runAfter": {}
+    },
+    "Parse_Availability": {
+      "type": "ParseJson",
+      "inputs": {
+        "content": "@body('Get_Availability_Tests')",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "value": {
+              "type": "array"
+            }
+          }
+        }
+      },
+      "runAfter": {
+        "Get_Availability_Tests": ["Succeeded"]
+      }
+    },
+    "Parse_Secure_Score": {
+      "type": "ParseJson",
+      "inputs": {
+        "content": "@body('Get_Secure_Score')",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "value": {
+              "type": "array"
+            }
+          }
+        }
+      },
+      "runAfter": {
+        "Get_Secure_Score": ["Succeeded"]
+      }
+    },
+    "Parse_Assessments": {
+      "type": "ParseJson",
+      "inputs": {
+        "content": "@body('Get_Security_Assessments')",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "value": {
+              "type": "array"
+            }
+          }
+        }
+      },
+      "runAfter": {
+        "Get_Security_Assessments": ["Succeeded"]
+      }
+    },
+    "Parse_Policy": {
+      "type": "ParseJson",
+      "inputs": {
+        "content": "@body('Get_Policy_States')",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "value": {
+              "type": "array"
+            }
+          }
+        }
+      },
+      "runAfter": {
+        "Get_Policy_States": ["Succeeded"]
+      }
+    },
+    "Parse_Activity_Log": {
+      "type": "ParseJson",
+      "inputs": {
+        "content": "@body('Get_Activity_Log')",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "value": {
+              "type": "array"
+            }
+          }
+        }
+      },
+      "runAfter": {
+        "Get_Activity_Log": ["Succeeded"]
+      }
+    },
+    "Compose_Uptime_Data": {
+      "type": "Compose",
+      "inputs": {
+        "window": "24h",
+        "availability": "@if(greater(length(body('Parse_Availability')?['value']), 0), div(mul(length(where(body('Parse_Availability')?['value'], item => equals(item?['success'], true))), 100), length(body('Parse_Availability')?['value'])), 100)",
+        "tests": "@length(body('Parse_Availability')?['value'])",
+        "failures": "@length(where(body('Parse_Availability')?['value'], item => equals(item?['success'], false)))",
+        "lastCheck": "@utcNow()"
+      },
+      "runAfter": {
+        "Parse_Availability": ["Succeeded"]
+      }
+    },
+    "Compose_Security_Data": {
+      "type": "Compose",
+      "inputs": {
+        "secureScore": "@if(greater(length(body('Parse_Secure_Score')?['value']), 0), body('Parse_Secure_Score')?['value'][0]?['properties']?['score']?['percentage'], 0)",
+        "highRecs": "@length(where(body('Parse_Assessments')?['value'], item => and(equals(item?['properties']?['status']?['code'], 'Unhealthy'), equals(item?['properties']?['metadata']?['severity'], 'High'))))",
+        "mediumRecs": "@length(where(body('Parse_Assessments')?['value'], item => and(equals(item?['properties']?['status']?['code'], 'Unhealthy'), equals(item?['properties']?['metadata']?['severity'], 'Medium'))))",
+        "lastUpdated": "@utcNow()"
+      },
+      "runAfter": {
+        "Parse_Secure_Score": ["Succeeded"],
+        "Parse_Assessments": ["Succeeded"]
+      }
+    },
+    "Compose_Policy_Data": {
+      "type": "Compose",
+      "inputs": {
+        "assignmentsEvaluated": "@if(greater(length(body('Parse_Policy')?['value']), 0), body('Parse_Policy')?['value'][0]?['results']?['policyAssignments'], 0)",
+        "nonCompliant": "@if(greater(length(body('Parse_Policy')?['value']), 0), body('Parse_Policy')?['value'][0]?['results']?['resourceDetails']?['nonCompliant'], 0)",
+        "lastUpdated": "@utcNow()"
+      },
+      "runAfter": {
+        "Parse_Policy": ["Succeeded"]
+      }
+    },
+    "Compose_Changes_Data": {
+      "type": "Compose",
+      "inputs": {
+        "mostRecentChange": {
+          "resource": "@if(greater(length(body('Parse_Activity_Log')?['value']), 0), last(split(body('Parse_Activity_Log')?['value'][0]?['resourceId'], '/')), 'No recent changes')",
+          "action": "@if(greater(length(body('Parse_Activity_Log')?['value']), 0), body('Parse_Activity_Log')?['value'][0]?['operationName']?['value'], '')",
+          "time": "@if(greater(length(body('Parse_Activity_Log')?['value']), 0), body('Parse_Activity_Log')?['value'][0]?['eventTimestamp'], utcNow())",
+          "actor": "@if(greater(length(body('Parse_Activity_Log')?['value']), 0), body('Parse_Activity_Log')?['value'][0]?['caller'], 'system')"
+        }
+      },
+      "runAfter": {
+        "Parse_Activity_Log": ["Succeeded"]
+      }
+    },
+    "Put_Uptime": {
+      "type": "ApiConnection",
+      "inputs": {
+        "host": {
+          "connection": {
+            "name": "@parameters('$connections')['azureblob']['connectionId']"
+          }
+        },
+        "method": "put",
+        "path": "/v2/datasets/@{encodeURIComponent(encodeURIComponent(parameters('storageAccountName')))}/files/@{encodeURIComponent(encodeURIComponent('/$web/data/uptime.json'))}",
+        "body": "@outputs('Compose_Uptime_Data')"
+      },
+      "runAfter": {
+        "Compose_Uptime_Data": ["Succeeded"]
+      }
+    },
+    "Put_Security": {
+      "type": "ApiConnection",
+      "inputs": {
+        "host": {
+          "connection": {
+            "name": "@parameters('$connections')['azureblob']['connectionId']"
+          }
+        },
+        "method": "put",
+        "path": "/v2/datasets/@{encodeURIComponent(encodeURIComponent(parameters('storageAccountName')))}/files/@{encodeURIComponent(encodeURIComponent('/$web/data/security.json'))}",
+        "body": "@outputs('Compose_Security_Data')"
+      },
+      "runAfter": {
+        "Compose_Security_Data": ["Succeeded"]
+      }
+    },
+    "Put_Policy": {
+      "type": "ApiConnection",
+      "inputs": {
+        "host": {
+          "connection": {
+            "name": "@parameters('$connections')['azureblob']['connectionId']"
+          }
+        },
+        "method": "put",
+        "path": "/v2/datasets/@{encodeURIComponent(encodeURIComponent(parameters('storageAccountName')))}/files/@{encodeURIComponent(encodeURIComponent('/$web/data/policy.json'))}",
+        "body": "@outputs('Compose_Policy_Data')"
+      },
+      "runAfter": {
+        "Compose_Policy_Data": ["Succeeded"]
+      }
+    },
+    "Put_Changes": {
+      "type": "ApiConnection",
+      "inputs": {
+        "host": {
+          "connection": {
+            "name": "@parameters('$connections')['azureblob']['connectionId']"
+          }
+        },
+        "method": "put",
+        "path": "/v2/datasets/@{encodeURIComponent(encodeURIComponent(parameters('storageAccountName')))}/files/@{encodeURIComponent(encodeURIComponent('/$web/data/changes.json'))}",
+        "body": "@outputs('Compose_Changes_Data')"
+      },
+      "runAfter": {
+        "Compose_Changes_Data": ["Succeeded"]
+      }
+    }
+  },
+  "outputs": {}
+}

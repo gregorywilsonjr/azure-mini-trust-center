@@ -1,0 +1,61 @@
+# Azure Functions
+local.settings.json
+__blobstorage__/
+__queuestorage__/
+__azurite_db*__.json
+.python_packages/
+.venv/
+
+# Node
+node_modules/
+npm-debug.log*
+package-lock.json
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+.venv
+
+# Bicep
+*.parameters.json
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Logs
+*.log
+logs/
+
+# Temporary files
+temp-*.json
+*.tmp
+
+# Secrets (DO NOT COMMIT)
+*.env
+.env.*
+secrets.json
+connection-strings.txt
+
+# Azure CLI
+.azure/
+
+# Deployment outputs
+deployment-outputs.json
+
+# Extra files (personal reference)
+Xtras/

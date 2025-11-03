@@ -1,0 +1,161 @@
+{
+  "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "subscriptionId": {
+      "type": "String"
+    },
+    "resourceGroupName": {
+      "type": "String"
+    },
+    "storageAccountName": {
+      "type": "String"
+    },
+    "webContainerName": {
+      "type": "String",
+      "defaultValue": "$web"
+    }
+  },
+  "triggers": {
+    "Every_15_Minutes": {
+      "type": "Recurrence",
+      "recurrence": {
+        "frequency": "Minute",
+        "interval": 15
+      }
+    }
+  },
+  "actions": {
+    "Compose_Uptime": {
+      "type": "Compose",
+      "inputs": {
+        "window": "24h",
+        "availability": 99.95,
+        "tests": 288,
+        "failures": 0,
+        "lastCheck": "@{utcNow()}"
+      },
+      "runAfter": {}
+    },
+    "Compose_Security": {
+      "type": "Compose",
+      "inputs": {
+        "secureScore": 78,
+        "highRecs": 1,
+        "mediumRecs": 4,
+        "lastUpdated": "@{utcNow()}"
+      },
+      "runAfter": {}
+    },
+    "Compose_Policy": {
+      "type": "Compose",
+      "inputs": {
+        "assignmentsEvaluated": 12,
+        "nonCompliant": 3,
+        "lastUpdated": "@{utcNow()}"
+      },
+      "runAfter": {}
+    },
+    "Compose_Changes": {
+      "type": "Compose",
+      "inputs": {
+        "mostRecentChange": {
+          "resource": "nsg-prod-web",
+          "action": "Microsoft.Network/networkSecurityGroups/write",
+          "time": "@{utcNow()}",
+          "actor": "user:automation@contoso.com"
+        }
+      },
+      "runAfter": {}
+    },
+    "Put_Uptime": {
+      "type": "ApiConnection",
+      "inputs": {
+        "host": {
+          "connection": {
+            "name": "@parameters('$connections')['azureblob']['connectionId']"
+          }
+        },
+        "method": "post",
+        "path": "/v2/datasets/default/files",
+        "body": {
+          "folderPath": "web",
+          "name": "data/uptime.json",
+          "content": "@{base64(string(outputs('Compose_Uptime')))}"
+        }
+      },
+      "runAfter": {
+        "Compose_Uptime": [
+          "Succeeded"
+        ]
+      }
+    },
+    "Put_Security": {
+      "type": "ApiConnection",
+      "inputs": {
+        "host": {
+          "connection": {
+            "name": "@parameters('$connections')['azureblob']['connectionId']"
+          }
+        },
+        "method": "post",
+        "path": "/v2/datasets/default/files",
+        "body": {
+          "folderPath": "web",
+          "name": "data/security.json",
+          "content": "@{base64(string(outputs('Compose_Security')))}"
+        }
+      },
+      "runAfter": {
+        "Compose_Security": [
+          "Succeeded"
+        ]
+      }
+    },
+    "Put_Policy": {
+      "type": "ApiConnection",
+      "inputs": {
+        "host": {
+          "connection": {
+            "name": "@parameters('$connections')['azureblob']['connectionId']"
+          }
+        },
+        "method": "post",
+        "path": "/v2/datasets/default/files",
+        "body": {
+          "folderPath": "web",
+          "name": "data/policy.json",
+          "content": "@{base64(string(outputs('Compose_Policy')))}"
+        }
+      },
+      "runAfter": {
+        "Compose_Policy": [
+          "Succeeded"
+        ]
+      }
+    },
+    "Put_Changes": {
+      "type": "ApiConnection",
+      "inputs": {
+        "host": {
+          "connection": {
+            "name": "@parameters('$connections')['azureblob']['connectionId']"
+          }
+        },
+        "method": "post",
+        "path": "/v2/datasets/default/files",
+        "body": {
+          "folderPath": "web",
+          "name": "data/changes.json",
+          "content": "@{base64(string(outputs('Compose_Changes')))}"
+        }
+      },
+      "runAfter": {
+        "Compose_Changes": [
+          "Succeeded"
+        ]
+      }
+    }
+  },
+  "outputs": {}
+}

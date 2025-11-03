@@ -1,0 +1,346 @@
+{
+  "comment": "Why: Maps Azure policies and security controls to compliance frameworks. Auditors need to see which controls are covered by which Azure policies. This transforms generic 'policy compliance' into framework-specific compliance percentages.",
+  "frameworks": {
+    "SOC2": {
+      "name": "SOC 2 Type II",
+      "description": "Trust Services Criteria for Security, Availability, and Confidentiality",
+      "controls": [
+        {
+          "id": "CC6.1",
+          "name": "Logical and Physical Access Controls",
+          "description": "The entity implements logical access security software, infrastructure, and architectures over protected information assets",
+          "azurePolicies": [
+            "Require MFA for privileged accounts",
+            "Network Security Groups on subnets",
+            "Storage accounts should restrict network access"
+          ],
+          "defenderControls": [
+            "Identity and Access recommendations",
+            "Network security recommendations"
+          ],
+          "status": "compliant"
+        },
+        {
+          "id": "CC6.6",
+          "name": "Logical and Physical Access Controls - Encryption",
+          "description": "The entity implements encryption to protect data at rest and in transit",
+          "azurePolicies": [
+            "Storage accounts should use customer-managed key for encryption",
+            "Transparent Data Encryption on SQL databases should be enabled",
+            "HTTPS only traffic for web apps"
+          ],
+          "defenderControls": [
+            "Enable encryption at rest",
+            "Secure transfer to storage accounts should be enabled"
+          ],
+          "status": "compliant"
+        },
+        {
+          "id": "CC7.2",
+          "name": "System Monitoring",
+          "description": "The entity monitors system components and the operation of those components",
+          "azurePolicies": [
+            "Azure Monitor log profile should be enabled",
+            "Diagnostic logs should be enabled",
+            "Activity log retention should be at least 365 days"
+          ],
+          "defenderControls": [
+            "Enable Azure Defender for all resource types",
+            "Auto provisioning of monitoring agent should be enabled"
+          ],
+          "status": "partial"
+        },
+        {
+          "id": "CC7.3",
+          "name": "System Monitoring - Incident Response",
+          "description": "The entity evaluates security events to determine whether they could impact the system",
+          "azurePolicies": [
+            "Security contact email address should be provided",
+            "Security contact phone number should be provided"
+          ],
+          "defenderControls": [
+            "Security alerts and recommendations",
+            "Threat detection for Azure services"
+          ],
+          "status": "compliant"
+        }
+      ],
+      "overallCompliance": 85,
+      "compliantControls": 3,
+      "totalControls": 4
+    },
+    "ISO27001": {
+      "name": "ISO/IEC 27001:2022",
+      "description": "Information Security Management System",
+      "controls": [
+        {
+          "id": "A.9.2.1",
+          "name": "User Registration and De-registration",
+          "description": "A formal user registration and de-registration process shall be implemented",
+          "azurePolicies": [
+            "MFA should be enabled on accounts with owner permissions",
+            "Deprecated accounts should be removed",
+            "External accounts with owner permissions should be removed"
+          ],
+          "defenderControls": [
+            "Remove unused accounts",
+            "Enable MFA for Azure accounts"
+          ],
+          "status": "compliant"
+        },
+        {
+          "id": "A.12.6.1",
+          "name": "Management of Technical Vulnerabilities",
+          "description": "Information about technical vulnerabilities shall be obtained in a timely fashion",
+          "azurePolicies": [
+            "System updates should be installed on machines",
+            "Vulnerabilities in security configuration should be remediated",
+            "Vulnerability assessment should be enabled on SQL servers"
+          ],
+          "defenderControls": [
+            "Vulnerability assessment findings",
+            "Security recommendations for VMs",
+            "SQL vulnerability assessment"
+          ],
+          "status": "partial"
+        },
+        {
+          "id": "A.12.4.1",
+          "name": "Event Logging",
+          "description": "Event logs recording user activities shall be produced and kept",
+          "azurePolicies": [
+            "Audit logging should be enabled on SQL Server",
+            "Diagnostic logs in Key Vault should be enabled",
+            "Resource logs in Azure Stream Analytics should be enabled"
+          ],
+          "defenderControls": [
+            "Enable diagnostic logging",
+            "Audit retention policies"
+          ],
+          "status": "compliant"
+        },
+        {
+          "id": "A.18.1.3",
+          "name": "Protection of Records",
+          "description": "Records shall be protected from loss, destruction, falsification and unauthorized access",
+          "azurePolicies": [
+            "Geo-redundant backup should be enabled for Azure Database",
+            "Long-term geo-redundant backup should be enabled for Azure SQL Databases",
+            "Soft delete should be enabled for Azure Storage"
+          ],
+          "defenderControls": [
+            "Enable backup for VMs",
+            "Configure backup retention"
+          ],
+          "status": "compliant"
+        }
+      ],
+      "overallCompliance": 88,
+      "compliantControls": 3,
+      "totalControls": 4
+    },
+    "PCIDSS": {
+      "name": "PCI DSS v4.0.1",
+      "description": "Payment Card Industry Data Security Standard",
+      "controls": [
+        {
+          "id": "1.2.1",
+          "name": "Network Security Controls",
+          "description": "Configuration standards for network security controls are defined and implemented",
+          "azurePolicies": [
+            "All network ports should be restricted on NSGs",
+            "Internet-facing virtual machines should be protected with NSGs",
+            "Subnets should be associated with a Network Security Group"
+          ],
+          "defenderControls": [
+            "Adaptive network hardening recommendations",
+            "Just-in-time VM access"
+          ],
+          "status": "compliant"
+        },
+        {
+          "id": "2.2.2",
+          "name": "Vendor Default Accounts",
+          "description": "Vendor default accounts are managed",
+          "azurePolicies": [
+            "Accounts with owner permissions should have MFA enabled",
+            "Guest accounts with owner permissions should be removed"
+          ],
+          "defenderControls": [
+            "Remove default credentials",
+            "Disable unused accounts"
+          ],
+          "status": "compliant"
+        },
+        {
+          "id": "8.3.1",
+          "name": "Multi-Factor Authentication",
+          "description": "MFA is implemented for all access to the CDE",
+          "azurePolicies": [
+            "MFA should be enabled on accounts with write permissions",
+            "MFA should be enabled on accounts with read permissions"
+          ],
+          "defenderControls": [
+            "Enable MFA for all users",
+            "Conditional access policies"
+          ],
+          "status": "partial"
+        },
+        {
+          "id": "10.2.1",
+          "name": "Audit Logs",
+          "description": "Audit logs are implemented to support detection of anomalies and suspicious activity",
+          "azurePolicies": [
+            "Activity log should be retained for at least one year",
+            "Diagnostic settings for selected resource types should be enabled"
+          ],
+          "defenderControls": [
+            "Enable audit logging",
+            "Configure log retention"
+          ],
+          "status": "compliant"
+        }
+      ],
+      "overallCompliance": 82,
+      "compliantControls": 3,
+      "totalControls": 4
+    },
+    "NIST": {
+      "name": "NIST Cybersecurity Framework",
+      "description": "Framework for Improving Critical Infrastructure Cybersecurity",
+      "controls": [
+        {
+          "id": "PR.AC-1",
+          "name": "Identity and Access Management",
+          "description": "Identities and credentials are issued, managed, verified, revoked, and audited",
+          "azurePolicies": [
+            "MFA should be enabled for all accounts",
+            "Service principals should be used instead of certificates",
+            "Managed identities should be used for Azure resources"
+          ],
+          "defenderControls": [
+            "Identity recommendations",
+            "Privileged access management"
+          ],
+          "status": "compliant"
+        },
+        {
+          "id": "PR.DS-1",
+          "name": "Data-at-rest Protection",
+          "description": "Data-at-rest is protected",
+          "azurePolicies": [
+            "Transparent Data Encryption should be enabled",
+            "Disk encryption should be applied on VMs",
+            "Storage accounts should use encryption"
+          ],
+          "defenderControls": [
+            "Enable encryption recommendations",
+            "Key management best practices"
+          ],
+          "status": "compliant"
+        },
+        {
+          "id": "DE.CM-1",
+          "name": "Network Monitoring",
+          "description": "The network is monitored to detect potential cybersecurity events",
+          "azurePolicies": [
+            "Network Watcher should be enabled",
+            "Flow logs should be enabled for NSGs",
+            "Traffic Analytics should be enabled"
+          ],
+          "defenderControls": [
+            "Network security monitoring",
+            "Threat detection for network layer"
+          ],
+          "status": "partial"
+        },
+        {
+          "id": "RS.AN-1",
+          "name": "Incident Analysis",
+          "description": "Notifications from detection systems are investigated",
+          "azurePolicies": [
+            "Security contact email should be provided",
+            "Email notification for high severity alerts should be enabled"
+          ],
+          "defenderControls": [
+            "Security alerts",
+            "Incident response recommendations"
+          ],
+          "status": "compliant"
+        }
+      ],
+      "overallCompliance": 86,
+      "compliantControls": 3,
+      "totalControls": 4
+    },
+    "GDPR": {
+      "name": "GDPR",
+      "description": "General Data Protection Regulation",
+      "controls": [
+        {
+          "id": "Art.32",
+          "name": "Security of Processing",
+          "description": "Implement appropriate technical and organizational measures to ensure security",
+          "azurePolicies": [
+            "Encryption at rest and in transit",
+            "Access controls and authentication",
+            "Network security controls"
+          ],
+          "defenderControls": [
+            "Security posture management",
+            "Vulnerability assessments"
+          ],
+          "status": "compliant"
+        },
+        {
+          "id": "Art.33",
+          "name": "Breach Notification",
+          "description": "Notify supervisory authority of data breaches within 72 hours",
+          "azurePolicies": [
+            "Security alerts should be configured",
+            "Email notifications for security incidents"
+          ],
+          "defenderControls": [
+            "Threat detection",
+            "Security incident alerts"
+          ],
+          "status": "compliant"
+        },
+        {
+          "id": "Art.25",
+          "name": "Data Protection by Design",
+          "description": "Implement data protection principles by design and by default",
+          "azurePolicies": [
+            "Default deny network policies",
+            "Encryption by default",
+            "Minimal data collection policies"
+          ],
+          "defenderControls": [
+            "Security baseline recommendations",
+            "Privacy controls"
+          ],
+          "status": "partial"
+        }
+      ],
+      "overallCompliance": 84,
+      "compliantControls": 2,
+      "totalControls": 3
+    }
+  },
+  "summary": {
+    "totalFrameworks": 5,
+    "averageCompliance": 85,
+    "highestCompliance": {
+      "framework": "ISO27001",
+      "percentage": 88
+    },
+    "lowestCompliance": {
+      "framework": "PCIDSS",
+      "percentage": 82
+    },
+    "totalControlsMapped": 19,
+    "compliantControls": 14,
+    "partialControls": 5,
+    "nonCompliantControls": 0
+  }
+}

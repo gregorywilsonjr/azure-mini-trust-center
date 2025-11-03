@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Aftershock | Transparency Trust Center (TTC) (Azure)</title>
+  <style>
+    :root { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Arial, "Apple Color Emoji", "Segoe UI Emoji"; }
+    body { margin: 0; padding: 2rem; background:#0b0f14; color:#e6eef8; }
+    .grid { display:grid; gap:1rem; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
+    .card { background:#121822; border:1px solid #1e293b; border-radius:16px; padding:1.25rem; box-shadow:0 6px 20px rgba(0,0,0,.25); min-height:120px; display:flex; flex-direction:column; }
+    .title { font-size:0.95rem; opacity:.8; margin-bottom:.5rem; word-wrap:break-word; }
+    .value { font-size:1.75rem; font-weight:700; margin:.25rem 0 .75rem; word-wrap:break-word; overflow-wrap:break-word; line-height:1.2; }
+    .meta { font-size:.8rem; opacity:.8; word-wrap:break-word; overflow-wrap:break-word; line-height:1.4; }
+    .chip { display:inline-block; padding:.2rem .6rem; border-radius:999px; font-size:.75rem; margin-left:.5rem; white-space:nowrap; }
+    .ok { background:#063; }
+    .warn { background:#704; }
+    header { display:flex; align-items:center; justify-content:space-between; margin-bottom:1.25rem; flex-wrap:wrap; gap:0.5rem; }
+    h1 { font-size:1.4rem; margin:0; }
+    a { color:#8ab4ff; }
+    footer { margin-top:2rem; opacity:.7; font-size:.85rem }
+    @media (max-width: 768px) {
+      body { padding: 1rem; }
+      .grid { grid-template-columns: 1fr; }
+      .value { font-size:1.5rem; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Aftershock Cyber Solutions — Transparency Trust Center (TTC)</h1>
+    <div>Audit‑Ready, Every Day</div>
+  </header>
+
+  <div class="grid" id="cards"></div>
+
+  <footer>
+    Evidence stubs: <a href="evidence/Pentest_Summary_Redacted.pdf">Pen Test (Redacted)</a> · <a href="evidence/Policy_Snapshot_Redacted.pdf">Policy Snapshot</a>
+  </footer>
+
+<script>
+async function fetchJSON(path){ const r = await fetch(path); return r.ok ? r.json() : null; }
+
+function chip(value, ok=true){ const span=document.createElement('span'); span.className='chip '+(ok?'ok':'warn'); span.textContent=value.split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()).join(' '); return span; }
+
+function card(title, value, meta, ok=true){
+  const c = document.createElement('div'); c.className='card';
+  const t = document.createElement('div'); t.className='title'; t.textContent=title;
+  const v = document.createElement('div'); v.className='value'; v.textContent=value;
+  const m = document.createElement('div'); m.className='meta'; m.textContent=meta;
+  c.append(t, v, m);
+  t.appendChild(chip(ok?'OK':'Attention', ok));
+  return c;
+}
+
+(async ()=>{
+  const grid = document.getElementById('cards');
+
+  const [uptime, security, policy, changes, tenable] = await Promise.all([
+    fetchJSON('data/uptime.json'),
+    fetchJSON('data/security.json'),
+    fetchJSON('data/policy.json'),
+    fetchJSON('data/changes.json'),
+    fetchJSON('data/tenable.json')
+  ]);
+
+  if(uptime){
+    const availability = parseFloat(uptime.availability ?? 0);
+    grid.append(card('Uptime (24h)',
+      availability.toFixed(2) + '%',
+      `Checks: ${uptime.tests} · Failures: ${uptime.failures} · As of: ${uptime.lastCheck}`,
+      availability >= 99.9));
+  }
+
+  if(security){
+    const highRecs = parseInt(security.highRecs ?? 0);
+    const ok = highRecs === 0;
+    grid.append(card('Security Posture',
+      `Score: ${security.secureScore ?? 0}`,
+      `High Recs: ${security.highRecs ?? 0} · Medium Recs: ${security.mediumRecs ?? 0} · Updated: ${security.lastUpdated}`,
+      ok));
+  }
+
+  if(policy){
+    const assignmentsEvaluated = parseInt(policy.assignmentsEvaluated ?? 0);
+    const nonCompliant = parseInt(policy.nonCompliant ?? 0);
+    const ok = nonCompliant === 0;
+    grid.append(card('Policy Compliance',
+      `${assignmentsEvaluated - nonCompliant}/${assignmentsEvaluated} compliant`,
+      `Non‑compliant: ${policy.nonCompliant ?? 0} · Updated: ${policy.lastUpdated}`,
+      ok));
+  }
+
+  if(changes){
+    const c = changes.mostRecentChange || {};
+    const ok = true;
+    // Convert Azure action to customer-friendly description
+    const action = (c.action || '').toLowerCase();
+    const resourceType = (c.resource || '').toLowerCase();
+    let description = 'Configuration change';
+    
+    if(action.includes('write')) {
+      if(resourceType.includes('nsg') || resourceType.includes('security')) description = 'Security rule updated';
+      else if(resourceType.includes('vm') || resourceType.includes('compute')) description = 'VM configuration changed';
+      else if(resourceType.includes('storage')) description = 'Storage settings modified';
+      else if(resourceType.includes('network')) description = 'Network configuration updated';
+      else description = 'Resource updated';
+    } else if(action.includes('delete')) {
+      description = 'Resource deleted';
+    } else if(action.includes('action')) {
+      description = 'Action performed';
+    }
+    
+    const shortActor = (c.actor || '').replace('user:', '').replace('servicePrincipal:', 'SP: ');
+    const shortTime = (c.time || '').split('T')[0] || c.time;
+    grid.append(card('Recent Change',
+      description,
+      `Resource: ${c.resource || '—'} · By: ${shortActor || '—'} · When: ${shortTime || '—'}`,
+      ok));
+  }
+
+  if(tenable){
+    const critical = parseInt(tenable.vulnerabilitySummary?.critical ?? 0);
+    const high = parseInt(tenable.vulnerabilitySummary?.high ?? 0);
+    const ok = critical === 0 && high <= 1;
+    grid.append(card('Vulnerability Summary (Tenable)',
+      `Critical: ${tenable.vulnerabilitySummary?.critical ?? 0} · High: ${tenable.vulnerabilitySummary?.high ?? 0}`,
+      `Medium: ${tenable.vulnerabilitySummary?.medium ?? 0} · Last Scan: ${tenable.vulnerabilitySummary?.lastScan || '—'}`,
+      ok));
+  }
+})();
+</script>
+</body>
+</html>

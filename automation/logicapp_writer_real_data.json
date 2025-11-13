@@ -151,6 +151,49 @@
         "Get_Policy_States": ["Succeeded"]
       }
     },
+    "Get_Policy_Details": {
+      "type": "Http",
+      "inputs": {
+        "method": "POST",
+        "uri": "https://management.azure.com/subscriptions/@{parameters('subscriptionId')}/providers/Microsoft.PolicyInsights/policyStates/latest/queryResults?api-version=2019-10-01",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "query": "SELECT PolicyDefinitionName, ComplianceState FROM policyresources"
+        },
+        "authentication": {
+          "type": "ManagedServiceIdentity"
+        }
+      },
+      "runAfter": {
+        "Parse_Policy": ["Succeeded"]
+      }
+    },
+    "Parse_Policy_Details": {
+      "type": "ParseJson",
+      "inputs": {
+        "content": "@body('Get_Policy_Details')",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "value": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "PolicyDefinitionName": {"type": "string"},
+                  "ComplianceState": {"type": "string"}
+                }
+              }
+            }
+          }
+        }
+      },
+      "runAfter": {
+        "Get_Policy_Details": ["Succeeded"]
+      }
+    },
     "Parse_Activity_Log": {
       "type": "ParseJson",
       "inputs": {
@@ -175,7 +218,7 @@
         "availability": "@if(greater(length(body('Parse_Availability')?['value']), 0), div(mul(length(where(body('Parse_Availability')?['value'], item => equals(item?['success'], true))), 100), length(body('Parse_Availability')?['value'])), 100)",
         "tests": "@length(body('Parse_Availability')?['value'])",
         "failures": "@length(where(body('Parse_Availability')?['value'], item => equals(item?['success'], false)))",
-        "lastCheck": "@utcNow()"
+        "lastCheck": "@formatDateTime(addHours(utcNow(), -8), 'yyyy\/MM\/dd HH:mm:ss')"
       },
       "runAfter": {
         "Parse_Availability": ["Succeeded"]
@@ -187,7 +230,7 @@
         "secureScore": "@if(greater(length(body('Parse_Secure_Score')?['value']), 0), body('Parse_Secure_Score')?['value'][0]?['properties']?['score']?['percentage'], 0)",
         "highRecs": "@length(where(body('Parse_Assessments')?['value'], item => and(equals(item?['properties']?['status']?['code'], 'Unhealthy'), equals(item?['properties']?['metadata']?['severity'], 'High'))))",
         "mediumRecs": "@length(where(body('Parse_Assessments')?['value'], item => and(equals(item?['properties']?['status']?['code'], 'Unhealthy'), equals(item?['properties']?['metadata']?['severity'], 'Medium'))))",
-        "lastUpdated": "@utcNow()"
+        "lastUpdated": "@formatDateTime(addHours(utcNow(), -8), 'yyyy\/MM\/dd HH:mm:ss')"
       },
       "runAfter": {
         "Parse_Secure_Score": ["Succeeded"],
@@ -199,7 +242,7 @@
       "inputs": {
         "assignmentsEvaluated": "@if(greater(length(body('Parse_Policy')?['value']), 0), body('Parse_Policy')?['value'][0]?['results']?['policyAssignments'], 0)",
         "nonCompliant": "@if(greater(length(body('Parse_Policy')?['value']), 0), body('Parse_Policy')?['value'][0]?['results']?['resourceDetails']?['nonCompliant'], 0)",
-        "lastUpdated": "@utcNow()"
+        "lastUpdated": "@formatDateTime(addHours(utcNow(), -8), 'yyyy\/MM\/dd HH:mm:ss')"
       },
       "runAfter": {
         "Parse_Policy": ["Succeeded"]
@@ -211,12 +254,50 @@
         "mostRecentChange": {
           "resource": "@if(greater(length(body('Parse_Activity_Log')?['value']), 0), last(split(body('Parse_Activity_Log')?['value'][0]?['resourceId'], '/')), 'No recent changes')",
           "action": "@if(greater(length(body('Parse_Activity_Log')?['value']), 0), body('Parse_Activity_Log')?['value'][0]?['operationName']?['value'], '')",
-          "time": "@if(greater(length(body('Parse_Activity_Log')?['value']), 0), body('Parse_Activity_Log')?['value'][0]?['eventTimestamp'], utcNow())",
-          "actor": "@if(greater(length(body('Parse_Activity_Log')?['value']), 0), body('Parse_Activity_Log')?['value'][0]?['caller'], 'system')"
+          "time": "@if(greater(length(body('Parse_Activity_Log')?['value']), 0), formatDateTime(addHours(body('Parse_Activity_Log')?['value'][0]?['eventTimestamp'], -8), 'yyyy\/MM\/dd HH:mm:ss'), formatDateTime(addHours(utcNow(), -8), 'yyyy\/MM\/dd HH:mm:ss'))",
+          "actor": "@if(greater(length(body('Parse_Activity_Log')?['value']), 0), replace(body('Parse_Activity_Log')?['value'][0]?['caller'], '@contoso.com', '@aftershockcyber.com'), 'system')"
         }
       },
       "runAfter": {
         "Parse_Activity_Log": ["Succeeded"]
+      }
+    },
+    "Get_Control_Mapping": {
+      "type": "ApiConnection",
+      "inputs": {
+        "host": {
+          "connection": {
+            "name": "@parameters('$connections')['azureblob']['connectionId']"
+          }
+        },
+        "method": "get",
+        "path": "/v2/datasets/@{encodeURIComponent(encodeURIComponent(parameters('storageAccountName')))}/files/@{encodeURIComponent(encodeURIComponent('/$web/data/control-mapping.json'))}"
+      },
+      "runAfter": {
+        "Parse_Policy_Details": ["Succeeded"],
+        "Parse_Assessments": ["Succeeded"]
+      }
+    },
+    "Decode_Control_Mapping": {
+      "type": "Compose",
+      "inputs": "@json(base64ToString(body('Get_Control_Mapping')?['Content']))",
+      "runAfter": {
+        "Get_Control_Mapping": ["Succeeded"]
+      }
+    },
+    "Compute_Framework_Compliance": {
+      "type": "InlineCode",
+      "inputs": {
+        "language": "JavaScript",
+        "inlineCode": "const mapping = controlMapping.frameworks || {};\nconst policyStates = (policyDetails && policyDetails.value) || [];\nconst assessments = assessmentsBody || [];\nconst normalize = value => (value || '').toLowerCase();\nconst policyStatusMap = {};\npolicyStates.forEach(item => {\n  const name = item.PolicyDefinitionName || item.policyDefinitionName;\n  if(!name) return;\n  const state = normalize(item.ComplianceState || item.complianceState);\n  if(!policyStatusMap[name]) policyStatusMap[name] = [];\n  policyStatusMap[name].push(state);\n});\nconst assessmentStatusMap = {};\nassessments.forEach(item => {\n  const props = item.properties || {};\n  const displayName = props.displayName;\n  if(!displayName) return;\n  const status = normalize(props.status && props.status.code);\n  assessmentStatusMap[displayName] = status;\n});\nconst frameworks = {};\nlet totalFrameworks = 0;\nlet totalControls = 0;\nlet compliantControls = 0;\nlet partialControls = 0;\nlet nonCompliantControls = 0;\nconst overallList = [];\nObject.entries(mapping).forEach(([key, framework]) => {\n  totalFrameworks += 1;\n  const controls = [];\n  let frameworkCompliant = 0;\n  let frameworkPartial = 0;\n  let frameworkNon = 0;\n  Object.entries(framework.controls || {}).forEach(([ctrlKey, ctrl]) => {\n    const policyResults = (ctrl.azurePolicySummaries || []).map(name => {\n      const states = policyStatusMap[name] || [];\n      if(states.length === 0) return 'unknown';\n      if(states.some(state => state === 'noncompliant' || state === 'non-compliant')) return 'noncompliant';\n      if(states.every(state => state === 'compliant')) return 'compliant';\n      return 'partial';\n    });\n    const defenderResults = (ctrl.defenderAssessments || []).map(name => {\n      const status = assessmentStatusMap[name];\n      if(!status) return 'unknown';\n      if(status === 'healthy' || status === 'notapplicable') return 'compliant';\n      if(status === 'unhealthy') return 'noncompliant';\n      return status;\n    });\n    const combined = [...policyResults, ...defenderResults];\n    let status = 'partial';\n    if(combined.length === 0 || combined.every(state => state === 'unknown')){\n      status = 'partial';\n    } else if(combined.some(state => state === 'noncompliant')) {\n      status = 'nonCompliant';\n    } else if(combined.every(state => state === 'compliant')) {\n      status = 'compliant';\n    } else {\n      status = 'partial';\n    }\n    if(status === 'compliant') {\n      frameworkCompliant += 1;\n      compliantControls += 1;\n    } else if(status === 'nonCompliant') {\n      frameworkNon += 1;\n      nonCompliantControls += 1;\n    } else {\n      frameworkPartial += 1;\n      partialControls += 1;\n    }\n    totalControls += 1;\n    controls.push({\n      id: ctrlKey,\n      name: ctrl.name || ctrl.title || '',\n      description: ctrl.description || '',\n      status\n    });\n  });\n  const total = controls.length || 1;\n  const overallCompliance = Math.round((frameworkCompliant / total) * 100);\n  frameworks[key] = {\n    name: framework.name || key,\n    description: framework.description || '',\n    overallCompliance,\n    compliantControls: frameworkCompliant,\n    totalControls: total,\n    controls\n  };\n  overallList.push(overallCompliance);\n});\nconst averageCompliance = overallList.length ? Math.round(overallList.reduce((a,b)=>a+b,0)/overallList.length) : 0;\nlet highest = { framework: '', percentage: 0 };\nlet lowest = { framework: '', percentage: 0 };\nObject.entries(frameworks).forEach(([key, fw]) => {\n  if(fw.overallCompliance >= highest.percentage){\n    highest = { framework: key, percentage: fw.overallCompliance };\n  }\n  if(lowest.framework === '' || fw.overallCompliance <= lowest.percentage){\n    lowest = { framework: key, percentage: fw.overallCompliance };\n  }\n});\nreturn { frameworks, summary: { totalFrameworks, averageCompliance, highestCompliance: highest, lowestCompliance: lowest, totalControlsMapped: totalControls, compliantControls, partialControls, nonCompliantControls } };",
+        "parameters": {
+          "controlMapping": "@outputs('Decode_Control_Mapping')",
+          "policyDetails": "@outputs('Parse_Policy_Details')",
+          "assessmentsBody": "@body('Parse_Assessments')?['value']"
+        }
+      },
+      "runAfter": {
+        "Decode_Control_Mapping": ["Succeeded"]
       }
     },
     "Put_Uptime": {
@@ -281,6 +362,22 @@
       },
       "runAfter": {
         "Compose_Changes_Data": ["Succeeded"]
+      }
+    },
+    "Put_Compliance_Frameworks": {
+      "type": "ApiConnection",
+      "inputs": {
+        "host": {
+          "connection": {
+            "name": "@parameters('$connections')['azureblob']['connectionId']"
+          }
+        },
+        "method": "put",
+        "path": "/v2/datasets/@{encodeURIComponent(encodeURIComponent(parameters('storageAccountName')))}/files/@{encodeURIComponent(encodeURIComponent('/$web/data/compliance-frameworks.json'))}",
+        "body": "@outputs('Compute_Framework_Compliance')"
+      },
+      "runAfter": {
+        "Compute_Framework_Compliance": ["Succeeded"]
       }
     }
   },

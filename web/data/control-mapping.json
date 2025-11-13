@@ -1,0 +1,161 @@
+{
+  "generated": "2025-11-12",
+  "description": "Maps Azure policy summaries and Microsoft Defender for Cloud assessments to SOC 2 Type II, ISO/IEC 27001:2022, and PCI DSS v4.0.1 controls.",
+  "frameworks": {
+    "SOC2": {
+      "version": "AICPA TSC 2017",
+      "controls": {
+        "CC6.1": {
+          "title": "Logical and Physical Access Controls",
+          "azurePolicySummaries": [
+            "Require multifactor authentication for owner accounts",
+            "Network security groups should protect virtual networks",
+            "Storage accounts should restrict public network access"
+          ],
+          "defenderAssessments": [
+            "Identity and Access: MFA should be enabled on accounts with owner permissions",
+            "Network security recommendations"
+          ]
+        },
+        "CC6.6": {
+          "title": "Logical and Physical Access Controls - Encryption",
+          "azurePolicySummaries": [
+            "Storage accounts should use customer-managed keys for encryption",
+            "Transparent Data Encryption on SQL databases should be enabled",
+            "Web apps should only be accessible via HTTPS"
+          ],
+          "defenderAssessments": [
+            "Data security: Enable encryption at rest",
+            "Secure transfer to storage accounts should be enabled"
+          ]
+        },
+        "CC7.2": {
+          "title": "System Monitoring",
+          "azurePolicySummaries": [
+            "Azure Monitor log profile should be enabled",
+            "Diagnostic logs in Azure resources should be enabled",
+            "Activity log retention should be set to at least 365 days"
+          ],
+          "defenderAssessments": [
+            "Enable Microsoft Defender for Cloud for all eligible resources",
+            "Auto-provision the Log Analytics agent"
+          ]
+        },
+        "CC7.3": {
+          "title": "System Monitoring - Incident Response",
+          "azurePolicySummaries": [
+            "Security contact email address should be configured",
+            "Security contact phone number should be configured"
+          ],
+          "defenderAssessments": [
+            "Security alerts: Ensure alert notifications are routed",
+            "Threat detection coverage"
+          ]
+        }
+      }
+    },
+    "ISO27001": {
+      "version": "ISO/IEC 27001:2022",
+      "controls": {
+        "A.9.2.1": {
+          "title": "User registration and de-registration",
+          "azurePolicySummaries": [
+            "Remove deprecated accounts with owner permissions",
+            "External accounts with owner permissions should be removed",
+            "MFA should be enabled on accounts with owner permissions"
+          ],
+          "defenderAssessments": [
+            "Identity recommendation: Remove unused accounts",
+            "Enable MFA for Azure accounts"
+          ]
+        },
+        "A.12.6.1": {
+          "title": "Management of technical vulnerabilities",
+          "azurePolicySummaries": [
+            "System updates should be installed on virtual machines",
+            "Vulnerabilities in security configurations should be remediated",
+            "Vulnerability assessment should be enabled on SQL servers"
+          ],
+          "defenderAssessments": [
+            "Vulnerability assessment findings",
+            "Security recommendations for virtual machines"
+          ]
+        },
+        "A.12.4.1": {
+          "title": "Event logging",
+          "azurePolicySummaries": [
+            "Audit logging should be enabled on SQL servers",
+            "Diagnostic logs should be enabled on Key Vault",
+            "Resource logs in Azure Stream Analytics should be enabled"
+          ],
+          "defenderAssessments": [
+            "Enable diagnostic logging",
+            "Audit retention policies"
+          ]
+        },
+        "A.18.1.3": {
+          "title": "Protection of records",
+          "azurePolicySummaries": [
+            "Geo-redundant backup should be enabled for Azure Database",
+            "Long-term geo-redundant backup should be enabled for SQL databases",
+            "Soft delete should be enabled for Azure Storage"
+          ],
+          "defenderAssessments": [
+            "Backup recommendations",
+            "Retention configuration for backups"
+          ]
+        }
+      }
+    },
+    "PCIDSS": {
+      "version": "PCI DSS v4.0.1",
+      "controls": {
+        "1.2.1": {
+          "title": "Network Security Controls",
+          "azurePolicySummaries": [
+            "All network ports should be restricted on network security groups",
+            "Internet-facing VMs should be protected by network security groups",
+            "Subnets should be associated with a Network Security Group"
+          ],
+          "defenderAssessments": [
+            "Adaptive network hardening recommendations",
+            "Just-in-time VM access"
+          ]
+        },
+        "2.2.2": {
+          "title": "Vendor Default Accounts",
+          "azurePolicySummaries": [
+            "Accounts with owner permissions should have MFA enabled",
+            "Guest accounts with owner permissions should be removed"
+          ],
+          "defenderAssessments": [
+            "Remove default credentials",
+            "Disable unused accounts"
+          ]
+        },
+        "8.3.1": {
+          "title": "Multi-Factor Authentication",
+          "azurePolicySummaries": [
+            "MFA should be enabled on accounts with write permissions",
+            "MFA should be enabled on accounts with read permissions"
+          ],
+          "defenderAssessments": [
+            "Enable MFA for all users",
+            "Conditional access policy recommendations"
+          ]
+        },
+        "10.2.1": {
+          "title": "Audit Logs",
+          "azurePolicySummaries": [
+            "Activity log should be retained for at least 365 days",
+            "Diagnostic settings should be enabled on critical resources"
+          ],
+          "defenderAssessments": [
+            "Enable audit logging",
+            "Log retention configuration"
+          ]
+        }
+      }
+    }
+  }
+}

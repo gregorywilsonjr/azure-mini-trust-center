@@ -134,6 +134,19 @@
 // Why: Utility functions for data fetching and UI components
 async function fetchJSON(path){ const r = await fetch(path); return r.ok ? r.json() : null; }
 
+function formatToPST(isoString) {
+  if (!isoString) return '—';
+  const date = new Date(isoString);
+  const pstDate = new Date(date.toLocaleString('en-US', { timeZone: 'America/Los_Angeles' }));
+  const year = pstDate.getFullYear();
+  const month = String(pstDate.getMonth() + 1).padStart(2, '0');
+  const day = String(pstDate.getDate()).padStart(2, '0');
+  const hours = String(pstDate.getHours()).padStart(2, '0');
+  const minutes = String(pstDate.getMinutes()).padStart(2, '0');
+  const seconds = String(pstDate.getSeconds()).padStart(2, '0');
+  return `${year}/${month}/${day} ${hours}:${minutes}:${seconds}`;
+}
+
 function chip(value, ok=true){ 
   const span=document.createElement('span'); 
   span.className='chip '+(ok?'ok':'warn'); 
@@ -363,7 +376,7 @@ function renderFrameworks(frameworks) {
     const availability = parseFloat(uptime.availability ?? 0);
     grid.append(card('Uptime (24h)',
       availability.toFixed(2) + '%',
-      `Checks: ${uptime.tests} · Failures: ${uptime.failures} · As of: ${uptime.lastCheck}`,
+      `Checks: ${uptime.tests} · Failures: ${uptime.failures} · As of: ${formatToPST(uptime.lastCheck)}`,
       availability >= 99.9));
   }
 
@@ -372,7 +385,7 @@ function renderFrameworks(frameworks) {
     const ok = highRecs === 0;
     grid.append(card('Security Posture',
       `Score: ${security.secureScore ?? 0}`,
-      `High Recs: ${security.highRecs ?? 0} · Medium Recs: ${security.mediumRecs ?? 0} · Updated: ${security.lastUpdated}`,
+      `High Recs: ${security.highRecs ?? 0} · Medium Recs: ${security.mediumRecs ?? 0} · Updated: ${formatToPST(security.lastUpdated)}`,
       ok));
   }
 
@@ -382,7 +395,7 @@ function renderFrameworks(frameworks) {
     const ok = nonCompliant === 0;
     grid.append(card('Policy Compliance',
       `${assignmentsEvaluated - nonCompliant}/${assignmentsEvaluated} compliant`,
-      `Non‑compliant: ${policy.nonCompliant ?? 0} · Updated: ${policy.lastUpdated}`,
+      `Non‑compliant: ${policy.nonCompliant ?? 0} · Updated: ${formatToPST(policy.lastUpdated)}`,
       ok));
   }
 
@@ -406,10 +419,9 @@ function renderFrameworks(frameworks) {
     }
     
     const shortActor = (c.actor || '').replace('user:', '').replace('servicePrincipal:', 'SP: ');
-    const shortTime = (c.time || '').split('T')[0] || c.time;
     grid.append(card('Recent Change',
       description,
-      `Resource: ${c.resource || '—'} · By: ${shortActor || '—'} · When: ${shortTime || '—'}`,
+      `Resource: ${c.resource || '—'} · By: ${shortActor || '—'} · When: ${formatToPST(c.time)}`,
       ok));
   }
 
@@ -419,7 +431,7 @@ function renderFrameworks(frameworks) {
     const ok = critical === 0 && high <= 1;
     grid.append(card('Vulnerability Summary (Tenable)',
       `Critical: ${tenable.vulnerabilitySummary?.critical ?? 0} · High: ${tenable.vulnerabilitySummary?.high ?? 0}`,
-      `Medium: ${tenable.vulnerabilitySummary?.medium ?? 0} · Last Scan: ${tenable.vulnerabilitySummary?.lastScan || '—'}`,
+      `Medium: ${tenable.vulnerabilitySummary?.medium ?? 0} · Last Scan: ${formatToPST(tenable.vulnerabilitySummary?.lastScan)}`,
       ok));
   }
   

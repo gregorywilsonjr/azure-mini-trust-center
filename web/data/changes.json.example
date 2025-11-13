@@ -1,0 +1,8 @@
+{
+  "mostRecentChange": {
+    "resource": "nsg-prod-web",
+    "action": "Microsoft.Network/networkSecurityGroups/write",
+    "time": "2025-11-12T18:00:00Z",
+    "actor": "user:automation@aftershockcyber.com"
+  }
+}
